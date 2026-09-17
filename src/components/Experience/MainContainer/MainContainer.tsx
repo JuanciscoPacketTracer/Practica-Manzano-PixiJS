@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { SCALE_MODES, TextStyle, Texture } from "pixi.js";
 import apple0Asset from "../../../assets/apple_0.bmp";
 import apple1Asset from "../../../assets/apple_1.bmp";
+import apple2Asset from "../../../assets/apple_2.bmp";
 import backgroundAsset from "../../../assets/backgroundgame.bmp";
 import flowersAsset from "../../../assets/flowers.bmp";
 import tree0Asset from "../../../assets/tree_0.bmp";
@@ -12,10 +13,14 @@ import tree2Asset from "../../../assets/tree_2.bmp";
 import tree3Asset from "../../../assets/tree_3.bmp";
 import tree4Asset from "../../../assets/tree_4.bmp";
 import tree5Asset from "../../../assets/tree_5.bmp";
+import heart0Asset from "../../../assets/heart_0.bmp";
+import heart1Asset from "../../../assets/heart_1.bmp";
 import { calculateGameScale } from "../../../helpers/common";
 
 interface IMainContainerProps {
     canvasSize: { width: number; height: number };
+    redAppleCount: number;
+    lives: number;
 }
 const HUD_PADDING = 24;
 const HUD_ICON_SIZE = 60;
@@ -27,7 +32,7 @@ const HUD_TEXT_STYLE = new TextStyle({
     stroke: 0x1d2b1d,
     strokeThickness: 4,
 });
-export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainContainerProps>) => {
+export const MainContainer = ({ canvasSize, redAppleCount, lives, children }: PropsWithChildren<IMainContainerProps>) => {
     const textures = useMemo(() => {
         return [
             backgroundAsset,
@@ -40,6 +45,9 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
             tree5Asset,
             apple0Asset,
             apple1Asset,
+            apple2Asset,
+            heart0Asset,
+            heart1Asset,
         ].map((asset) => {
             const texture = Texture.from(asset);
             texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
@@ -48,28 +56,14 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
     }, []);
     const [backgroundTexture, flowersTexture, ...treeAndAppleTextures] = textures;
     const treeTextures = treeAndAppleTextures.slice(0, 6);
-    const appleTextures = treeAndAppleTextures.slice(6, 8);
+    const appleTextures = treeAndAppleTextures.slice(6, 9);
+    const heartTextures = treeAndAppleTextures.slice(9, 11);
     const treeScale = calculateGameScale(canvasSize);
     const treeSize = 256 * treeScale;
     const treePosition = {
         x: Math.max(0, (canvasSize.width - treeSize) / 2),
         y: Math.max(0, (canvasSize.height - treeSize) / 2),
     };
-    const applePositions = [
-        // red apples
-        { x: 62, y: 78, type: 0 },
-        { x: 92, y: 28, type: 0 },
-        { x: 22, y: 200, type: 0 },
-        { x: 154, y: 68, type: 0 },
-        { x: 182, y: 170, type: 0 },
-        { x: 138, y: 118, type: 0 },
-        // green apples
-        { x: 34, y: 116, type: 1 },
-        //{ x: 102, y: 164, type: 1 },
-       // { x: 14, y: 20, type: 1 },
-        { x: 188, y: 24, type: 1 },
-    ];
-
     return (
         <Container>
             <Sprite
@@ -92,22 +86,12 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
                     height={treeSize}
                 />
             ))}
-            {applePositions.map((position, index) => (
-                <Sprite
-                    key={`apple-${index}`}
-                    texture={appleTextures[position.type] ?? appleTextures[0]}
-                    x={treePosition.x + position.x * treeScale}
-                    y={treePosition.y + position.y * treeScale}
-                    width={20 * treeScale}
-                    height={20 * treeScale}
-                />
-            ))}
             <Container
                 x={HUD_PADDING * treeScale}
                 y={HUD_PADDING * treeScale}
                 scale={(treeScale)/2}
             >
-                <Text text="0/50" style={HUD_TEXT_STYLE} />
+                <Text text={`${redAppleCount}/50`} style={HUD_TEXT_STYLE} />
                 <Sprite
                     texture={appleTextures[0]}
                     x={70}
@@ -118,24 +102,21 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
                 />
             </Container>
             <Container
-                x={canvasSize.width - HUD_PADDING * treeScale}
+                x={canvasSize.width / 2}
                 y={HUD_PADDING * treeScale}
                 scale={(treeScale)/2}
             >
-                <Text
-                    text="0/3"
-                    style={HUD_TEXT_STYLE}
-                    x={-70}
-                    anchor={{ x: 1, y: 0 }}
-                />
-                <Sprite
-                    texture={appleTextures[1]}
-                    x={0}
-                    alpha={0.9}
-                    anchor={{ x: 1, y: 0 }}
-                    width={HUD_ICON_SIZE}
-                    height={HUD_ICON_SIZE}
-                />
+                {[0, 1, 2].map((lifeSlot) => (
+                    <Sprite
+                        key={`life-${lifeSlot}`}
+                        texture={heartTextures[lifeSlot < lives ? 0 : 1]}
+                        x={(lifeSlot - 1) * 70}
+                        alpha={0.9}
+                        anchor={{ x: 0.5, y: 0 }}
+                        width={HUD_ICON_SIZE}
+                        height={HUD_ICON_SIZE}
+                    />
+                ))}
             </Container>
             {children}
         </Container>
