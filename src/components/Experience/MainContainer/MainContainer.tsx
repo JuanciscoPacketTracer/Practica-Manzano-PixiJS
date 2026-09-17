@@ -12,12 +12,13 @@ import tree2Asset from "../../../assets/tree_2.bmp";
 import tree3Asset from "../../../assets/tree_3.bmp";
 import tree4Asset from "../../../assets/tree_4.bmp";
 import tree5Asset from "../../../assets/tree_5.bmp";
+import { calculateGameScale } from "../../../helpers/common";
 
 interface IMainContainerProps {
     canvasSize: { width: number; height: number };
 }
 const HUD_PADDING = 24;
-const HUD_ICON_SIZE =60;
+const HUD_ICON_SIZE = 60;
 const HUD_TEXT_STYLE = new TextStyle({
     fill: 0xffffff,
     fontFamily: "Arial",
@@ -48,7 +49,7 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
     const [backgroundTexture, flowersTexture, ...treeAndAppleTextures] = textures;
     const treeTextures = treeAndAppleTextures.slice(0, 6);
     const appleTextures = treeAndAppleTextures.slice(6, 8);
-    const treeScale = Math.min(canvasSize.width, canvasSize.height) / 256;
+    const treeScale = calculateGameScale(canvasSize);
     const treeSize = 256 * treeScale;
     const treePosition = {
         x: Math.max(0, (canvasSize.width - treeSize) / 2),
@@ -64,8 +65,8 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
         { x: 138, y: 118, type: 0 },
         // green apples
         { x: 34, y: 116, type: 1 },
-        { x: 102, y: 164, type: 1 },
-        { x: 14, y: 20, type: 1 },
+        //{ x: 102, y: 164, type: 1 },
+       // { x: 14, y: 20, type: 1 },
         { x: 188, y: 24, type: 1 },
     ];
 
@@ -102,30 +103,36 @@ export const MainContainer = ({ canvasSize, children }: PropsWithChildren<IMainC
                 />
             ))}
             <Container
-                x={HUD_PADDING}
-                y={canvasSize.height - HUD_PADDING - HUD_ICON_SIZE}
+                x={HUD_PADDING * treeScale}
+                y={HUD_PADDING * treeScale}
+                scale={(treeScale)/2}
             >
-                <Text text="0/50" style={HUD_TEXT_STYLE} y={2} />
+                <Text text="0/50" style={HUD_TEXT_STYLE} />
                 <Sprite
                     texture={appleTextures[0]}
                     x={70}
+                    alpha={0.9}
+                    anchor={{ x: 0, y: 0 }}
                     width={HUD_ICON_SIZE}
                     height={HUD_ICON_SIZE}
                 />
             </Container>
             <Container
-                x={canvasSize.width - HUD_PADDING - HUD_ICON_SIZE}
-                y={canvasSize.height - HUD_PADDING - HUD_ICON_SIZE}
+                x={canvasSize.width - HUD_PADDING * treeScale}
+                y={HUD_PADDING * treeScale}
+                scale={(treeScale)/2}
             >
                 <Text
                     text="0/3"
                     style={HUD_TEXT_STYLE}
-                    x={-12}
-                    y={2}
+                    x={-70}
                     anchor={{ x: 1, y: 0 }}
                 />
                 <Sprite
                     texture={appleTextures[1]}
+                    x={0}
+                    alpha={0.9}
+                    anchor={{ x: 1, y: 0 }}
                     width={HUD_ICON_SIZE}
                     height={HUD_ICON_SIZE}
                 />
