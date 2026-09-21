@@ -44,12 +44,18 @@ const collides = (first: { x: number; y: number; width: number; height: number }
 interface GameSceneProps {
     canvasSize: { width: number; height: number };
     gameScale: number;
+    isPaused: boolean;
     keysRef: React.MutableRefObject<Record<string, boolean>>;
     onScoreChange: (score: number) => void;
     onLivesChange: (lives: number) => void;
 }
 
-const GameScene = ({ canvasSize, gameScale, keysRef, onScoreChange, onLivesChange }: GameSceneProps) => {
+interface ExperienceProps {
+    isPlaying: boolean;
+    isPaused: boolean;
+}
+
+const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, onLivesChange }: GameSceneProps) => {
     const [apples, setApples] = useState<FallingApple[]>([]);
     const scoreRef = useRef(0);
     const livesRef = useRef(MAX_LIVES);
@@ -75,7 +81,7 @@ const GameScene = ({ canvasSize, gameScale, keysRef, onScoreChange, onLivesChang
     }, [apples]);
 
     useTick((delta) => {
-        if (livesRef.current <= 0 || scoreRef.current >= 50) return;
+        if (isPaused || livesRef.current <= 0 || scoreRef.current >= 50) return;
         const frameTime = delta / 60;
         const moveAmount = PLAYER_SPEED * delta;
         if (keysRef.current.a || keysRef.current.arrowleft) playerXRef.current -= moveAmount;
@@ -148,7 +154,7 @@ const GameScene = ({ canvasSize, gameScale, keysRef, onScoreChange, onLivesChang
         {apples.map((apple) => <Sprite ref={(sprite) => { appleSpritesRef.current[apple.id] = sprite; }} key={apple.id} texture={appleTextures[apple.type]} x={apple.x * gameScale} y={apple.y * gameScale} width={APPLE_SIZE * gameScale} height={APPLE_SIZE * gameScale} />)}
     </>;
 };
-export const Experience = () => {
+export const Experience = ({ isPlaying, isPaused }: ExperienceProps) => {
     const [canvasSize, setCanvasSize] = useState(calculateCanvasSize);
     const gameScale = calculateGameScale(canvasSize);
     const [redAppleCount, setRedAppleCount] = useState(0);
@@ -158,6 +164,8 @@ export const Experience = () => {
         setCanvasSize(calculateCanvasSize());
     }, []);
     useEffect(() => {
+        if (!isPlaying || isPaused) return;
+
         const handleKeyDown = (event: KeyboardEvent) => {
             const key = event.key.toLowerCase();
             const isMovementKey = ["w", "a", "s", "d", "arrowup", 
@@ -177,7 +185,7 @@ export const Experience = () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("keyup", handleKeyUp);
         };
-    }, []);
+    }, [isPaused, isPlaying]);
     useEffect(() => {
         window.addEventListener("resize", updateCanvasSize);
         return () => window.removeEventListener("resize", updateCanvasSize);
@@ -185,7 +193,9 @@ export const Experience = () => {
     return (
         <Stage width={canvasSize.width} height={canvasSize.height}>
             <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives}>
-                <GameScene canvasSize={canvasSize} gameScale={gameScale} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} />
+                {isPlaying && (
+                    <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} />
+                )}
             </MainContainer>
         </Stage>
     );
