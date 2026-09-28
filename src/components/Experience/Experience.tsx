@@ -6,7 +6,13 @@ import basketAsset from "../../assets/images/basket.bmp";
 import apple0Asset from "../../assets/images/apple_0.bmp";
 import apple1Asset from "../../assets/images/apple_1.bmp";
 import apple2Asset from "../../assets/images/apple_2.bmp";
+import collectGoldenSound from "../../assets/audio/sounds/collect_golden.mp3";
+import collectGreenSound from "../../assets/audio/sounds/collect_green.mp3";
+import collectRedSound from "../../assets/audio/sounds/collect_red.mp3";
+import fallsSound from "../../assets/audio/sounds/falls.mp3";
+import spawnSound from "../../assets/audio/sounds/spawn.mp3";
 import { calculateCanvasSize, calculateGameScale } from "../../helpers/common";
+import { SOUND_EFFECT_VOLUMES } from "../../constants/audio";
 import type { AppleType, CollectedApples, FallingApple } from "../../types/game";
 import { MainContainer } from "./MainContainer/MainContainer";
 const PLAYER_WIDTH = 40;
@@ -15,7 +21,7 @@ const PLAYER_Y = 220;
 const PLAYER_SPEED = 3.5;
 const APPLE_SIZE = 20;
 const MAX_LIVES = 3;
-const SPAWN_INTERVAL = 0.8;
+const SPAWN_INTERVAL = 0.7;
 const TREE_SIZE = 256;
 const SPAWN_X_MIN = 30;
 const SPAWN_X_MAX = 210;
@@ -23,11 +29,26 @@ const SPAWN_Y_MIN = 20;
 const SPAWN_Y_MAX = 120;
 const APPLE_SWING_DURATION = 1.5;
 const GOLDEN_SHINE_DURATION = 0.95;
+const COLLISION_SIZE_RATIO = 0.8;
+const SIDEWAYS_COLLECTION = true;
 const APPLE_TYPES: { type: AppleType; spawnChance: number; fallingSpeed: number }[] = [
-    { type: "red", spawnChance: 0.62, fallingSpeed: 2.2 },
-    { type: "green", spawnChance: 0.31, fallingSpeed: 2.2 },
-    { type: "golden", spawnChance: 0.07, fallingSpeed: 3.2 },
+    { type: "red", spawnChance: 0.57, fallingSpeed: 2.2 },
+    { type: "green", spawnChance: 0.37, fallingSpeed: 2.2 },
+    { type: "golden", spawnChance: 0.06, fallingSpeed: 3.2 },
 ];
+const SOUND_EFFECTS = {
+    golden: { source: collectGoldenSound, volume: SOUND_EFFECT_VOLUMES.collectGolden },
+    green: { source: collectGreenSound, volume: SOUND_EFFECT_VOLUMES.collectGreen },
+    red: { source: collectRedSound, volume: SOUND_EFFECT_VOLUMES.collectRed },
+    falls: { source: fallsSound, volume: SOUND_EFFECT_VOLUMES.falls },
+    spawn: { source: spawnSound, volume: SOUND_EFFECT_VOLUMES.spawn },
+} as const;
+
+const playSound = (sound: { source: string; volume: number }) => {
+    const audio = new Audio(sound.source);
+    audio.volume = sound.volume;
+    void audio.play().catch(() => undefined);
+};
 
 const pickAppleType = () => {
     const randomValue = Math.random();
@@ -39,9 +60,29 @@ const pickAppleType = () => {
     return "red" as const;
 };
 
-const collides = (first: { x: number; y: number; width: number; height: number }, second: typeof first) =>
-    first.x < second.x + second.width && first.x + first.width > second.x &&
-    first.y < second.y + second.height && first.y + first.height > second.y;
+const collides = (first: { x: number; y: number; width: number; height: number }, second: typeof first) => {
+    const firstInsetX = (first.width * (1 - COLLISION_SIZE_RATIO)) / 2;
+    const firstInsetY = (first.height * (1 - COLLISION_SIZE_RATIO)) / 2;
+    const secondInsetX = (second.width * (1 - COLLISION_SIZE_RATIO)) / 2;
+    const secondInsetY = (second.height * (1 - COLLISION_SIZE_RATIO)) / 2;
+    const firstHitbox = {
+        x: first.x + firstInsetX,
+        y: first.y + firstInsetY,
+        width: first.width * COLLISION_SIZE_RATIO,
+        height: first.height * COLLISION_SIZE_RATIO,
+    };
+    const secondHitbox = {
+        x: second.x + secondInsetX,
+        y: second.y + secondInsetY,
+        width: second.width * COLLISION_SIZE_RATIO,
+        height: second.height * COLLISION_SIZE_RATIO,
+    };
+
+    return firstHitbox.x < secondHitbox.x + secondHitbox.width &&
+        firstHitbox.x + firstHitbox.width > secondHitbox.x &&
+        firstHitbox.y < secondHitbox.y + secondHitbox.height &&
+        firstHitbox.y + firstHitbox.height > secondHitbox.y;
+};
 
 interface GameSceneProps {
     canvasSize: { width: number; height: number };
@@ -115,6 +156,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
             } satisfies FallingApple;
             applesRef.current = [...applesRef.current, nextApple];
             setApples(applesRef.current);
+            playSound(SOUND_EFFECTS.spawn);
         }
 
         const playerBounds = { x: playerXRef.current, y: PLAYER_Y, width: PLAYER_WIDTH, height: PLAYER_HEIGHT };
@@ -126,6 +168,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
             const appleType = APPLE_TYPES.find((candidate) => candidate.type === apple.type)!;
             apple.age += frameTime;
             const isSwinging = apple.age < APPLE_SWING_DURATION;
+            const previousAppleY = apple.y;
             if (!isSwinging) {
                 apple.y += appleType.fallingSpeed * delta;
             }
@@ -137,8 +180,11 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
                 sprite.y = apple.y * gameScale;
                 sprite.rotation = Math.sin(swingProgress * Math.PI * 6 + apple.id * 1.7) * 0.24 * (1 - swingProgress);
             }
-            if (collides(playerBounds, { x: apple.x, y: apple.y, width: APPLE_SIZE, height: APPLE_SIZE })) {
+            const crossedBasketTop = previousAppleY + APPLE_SIZE <= PLAYER_Y && apple.y + APPLE_SIZE >= PLAYER_Y;
+            const canCollect = SIDEWAYS_COLLECTION || crossedBasketTop;
+            if (canCollect && collides(playerBounds, { x: apple.x, y: apple.y, width: APPLE_SIZE, height: APPLE_SIZE })) {
                 collectedApplesRef.current[apple.type]++;
+                playSound(SOUND_EFFECTS[apple.type]);
                 if (apple.type === "red") scoreDelta++;
                 if (apple.type === "green") {
                     lifeDelta--;
@@ -159,6 +205,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
                 if (apple.type === "red") {
                     lifeDelta--;
                     projectedLives--;
+                    playSound(SOUND_EFFECTS.falls);
                 }
                 delete appleSpritesRef.current[apple.id];
                 return false;
@@ -247,13 +294,59 @@ export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps)
         window.addEventListener("resize", updateCanvasSize);
         return () => window.removeEventListener("resize", updateCanvasSize);
     }, [updateCanvasSize]);
+
+    const setMovementKey = (key: "arrowleft" | "arrowright", pressed: boolean) => {
+        keysRef.current[key] = pressed;
+    };
+
+    const releaseMovementKeys = () => {
+        keysRef.current.arrowleft = false;
+        keysRef.current.arrowright = false;
+    };
+
     return (
-        <Stage width={canvasSize.width} height={canvasSize.height}>
-            <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives} lifeRecoveryTrigger={lifeRecoveryTrigger}>
-                {isPlaying && (
-                    <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
-                )}
-            </MainContainer>
-        </Stage>
+        <>
+            <Stage width={canvasSize.width} height={canvasSize.height}>
+                <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives} lifeRecoveryTrigger={lifeRecoveryTrigger}>
+                    {isPlaying && (
+                        <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
+                    )}
+                </MainContainer>
+            </Stage>
+            {isPlaying && !isPaused && (
+                <div className="touch-controls" aria-label="Controles táctiles">
+                    <button
+                        className="touch-controls__button touch-controls__button--left"
+                        type="button"
+                        aria-label="Mover a la izquierda"
+                        onPointerDown={(event) => {
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            event.preventDefault();
+                            setMovementKey("arrowleft", true);
+                        }}
+                        onPointerUp={releaseMovementKeys}
+                        onPointerCancel={releaseMovementKeys}
+                        onLostPointerCapture={releaseMovementKeys}
+                    >
+                        <span aria-hidden="true">&#9664;</span>
+                    </button>
+                    <button
+                        className="touch-controls__button touch-controls__button--right"
+                        type="button"
+                        aria-label="Mover a la derecha"
+                        onPointerDown={(event) => {
+                            event.currentTarget.setPointerCapture(event.pointerId);
+                            event.preventDefault();
+                            setMovementKey("arrowright", true);
+                        }}
+                        onPointerUp={releaseMovementKeys}
+                        onPointerCancel={releaseMovementKeys}
+                        onLostPointerCapture={releaseMovementKeys}
+                    >
+                        <span aria-hidden="true">&#9654;</span>
+                    </button>
+                </div>
+            )}
+        </>
     );
 };

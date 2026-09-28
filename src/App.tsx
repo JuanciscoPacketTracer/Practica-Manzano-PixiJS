@@ -9,6 +9,11 @@ import bg1Music from "./assets/audio/music/bg1.mp3";
 import bg2Music from "./assets/audio/music/bg2.ogg";
 import bg3Music from "./assets/audio/music/bg3.mp3";
 import bg4Music from "./assets/audio/music/bg4.mp3";
+import applauseSound from "./assets/audio/sounds/applause.mp3";
+import countSound from "./assets/audio/sounds/count.mp3";
+import defeatSound from "./assets/audio/sounds/defeat.mp3";
+import goSound from "./assets/audio/sounds/go.mp3";
+import { MUSIC_VOLUMES, SOUND_EFFECT_VOLUMES } from "./constants/audio";
 import type { CollectedApples } from "./types/game";
 import "./index.css";
 
@@ -16,6 +21,12 @@ interface GameResult {
   outcome: "victory" | "defeat";
   collectedApples: CollectedApples;
 }
+
+const playSound = (source: string, volume: number) => {
+  const audio = new Audio(source);
+  audio.volume = volume;
+  void audio.play().catch(() => undefined);
+};
 
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,14 +41,13 @@ const App = () => {
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
     if (!audio.src) audio.src = bg1Music;
-    audio.muted = true;
+    audio.loop = true;
+    audio.volume = MUSIC_VOLUMES.bg1;
+    audio.muted = false;
     audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = false;
       setAudioUnlocked(true);
     }).catch(() => {
-      audio.muted = false;
+      setAudioUnlocked(false);
     });
   };
 
@@ -61,7 +71,7 @@ const App = () => {
     if (countdown === null) return;
 
     const countdownTimer = window.setTimeout(() => {
-      if (countdown === 1) {
+      if (countdown === 0) {
         setCountdown(null);
         setIsPlaying(true);
         return;
@@ -73,13 +83,28 @@ const App = () => {
   }, [countdown]);
 
   useEffect(() => {
+    if (countdown === null) return;
+    playSound(countdown === 0 ? goSound : countSound, countdown === 0 ? SOUND_EFFECT_VOLUMES.go : SOUND_EFFECT_VOLUMES.count);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (!gameResult) return;
+    playSound(
+      gameResult.outcome === "victory" ? applauseSound : defeatSound,
+      gameResult.outcome === "victory" ? SOUND_EFFECT_VOLUMES.applause : SOUND_EFFECT_VOLUMES.defeat,
+    );
+  }, [gameResult]);
+
+  useEffect(() => {
     const audio = audioRef.current ?? new Audio();
     audioRef.current = audio;
 
     const track = gameResult
       ? gameResult.outcome === "victory" ? bg3Music : bg4Music
       : isPlaying && !isPaused && countdown === null ? bg2Music : bg1Music;
-    const volume = gameResult || (isPlaying && !isPaused && countdown === null) ? 0.45 : 0.2;
+    const volume = gameResult
+      ? gameResult.outcome === "victory" ? MUSIC_VOLUMES.bg3 : MUSIC_VOLUMES.bg4
+      : isPlaying && !isPaused && countdown === null ? MUSIC_VOLUMES.bg2 : MUSIC_VOLUMES.bg1;
 
     if (audio.src !== new URL(track, window.location.href).href) {
       audio.src = track;
@@ -94,7 +119,7 @@ const App = () => {
 
   const isMenuVisible = !isPlaying && countdown === null || isPaused;
   const isCountdownVisible = countdown !== null;
-  const countdownLabel = countdown === 1 ? "¡Vamos!" : countdown;
+  const countdownLabel = countdown === 0 ? "¡Vamos!" : countdown;
 
   return (
     <main className="game-shell">
