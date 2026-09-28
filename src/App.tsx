@@ -1,5 +1,6 @@
 import { Experience } from "./components/Experience/Experience"
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import type { CSSProperties } from "react";
 import redAppleAsset from "./assets/images/apple_0.png";
 import greenAppleAsset from "./assets/images/apple_1.png";
@@ -16,6 +17,7 @@ import goSound from "./assets/audio/sounds/go.mp3";
 import { MUSIC_VOLUMES, SOUND_EFFECT_VOLUMES } from "./constants/audio";
 import { playEffect, syncMusic, unlockMusic } from "./helpers/audioManager";
 import type { CollectedApples } from "./types/game";
+import { fetchTopScores, getSavedUsername, saveUsername, submitScore, type LeaderboardEntry } from "./helpers/leaderboard";
 import "./index.css";
 
 interface GameResult {
@@ -29,6 +31,13 @@ const App = () => {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [username, setUsername] = useState(() => getSavedUsername() ?? "");
+  const [usernameInput, setUsernameInput] = useState("");
+  const [submitState, setSubmitState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardError, setLeaderboardError] = useState("");
+  const hasSubmittedResult = useRef(false);
 
   const unlockAudio = useCallback(() => {
     if (audioUnlocked) return;
@@ -53,7 +62,56 @@ const App = () => {
     setIsPlaying(false);
     setIsPaused(false);
     setGameResult({ outcome, collectedApples });
+    hasSubmittedResult.current = false;
+    setSubmitState("idle");
+    setSubmitMessage("");
   }, []);
+
+  useEffect(() => {
+    if (!gameResult) return;
+    let cancelled = false;
+    setLeaderboardError("");
+    fetchTopScores().then((scores) => {
+      if (!cancelled) setLeaderboard(scores);
+    }).catch(() => {
+      if (!cancelled) setLeaderboardError("No se pudo cargar el leaderboard");
+    });
+    return () => { cancelled = true; };
+  }, [gameResult]);
+
+  const submitCurrentScore = useCallback(async (playerUsername: string) => {
+    if (!gameResult || hasSubmittedResult.current) return;
+    hasSubmittedResult.current = true;
+    setSubmitState("loading");
+    setSubmitMessage("");
+    try {
+      await submitScore(playerUsername, gameResult.collectedApples);
+      saveUsername(playerUsername);
+      setUsername(playerUsername);
+      setSubmitState("success");
+      setSubmitMessage("Puntaje guardado");
+      setLeaderboard(await fetchTopScores());
+    } catch (error) {
+      hasSubmittedResult.current = false;
+      setSubmitState("error");
+      setSubmitMessage(error instanceof Error ? error.message : "No se pudo guardar el puntaje");
+    }
+  }, [gameResult]);
+
+  useEffect(() => {
+    if (gameResult && username) void submitCurrentScore(username);
+  }, [gameResult, submitCurrentScore, username]);
+
+  const handleScoreSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedUsername = usernameInput.trim();
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(normalizedUsername)) {
+      setSubmitState("error");
+      setSubmitMessage("Usa de 3 a 20 caracteres: letras, números o guion bajo");
+      return;
+    }
+    void submitCurrentScore(normalizedUsername);
+  };
 
   useEffect(() => {
     if (countdown === null) return;
@@ -156,6 +214,24 @@ const App = () => {
               <div><img src={goldenAppleAsset} alt="" /><span>Doradas</span><strong>{gameResult.collectedApples.golden}</strong></div>
               <div className="result-screen__total"><span>Total recogidas</span><strong>{Object.values(gameResult.collectedApples).reduce((total, count) => total + count, 0)}</strong></div>
             </div>
+            {!username && submitState !== "success" && (
+              <form className="score-form" onSubmit={handleScoreSubmit}>
+                <label htmlFor="username">Guarda tu puntaje</label>
+                <div className="score-form__controls">
+                  <input id="username" value={usernameInput} onChange={(event) => setUsernameInput(event.target.value)} maxLength={20} placeholder="Tu username" autoComplete="nickname" disabled={submitState === "loading"} />
+                  <button className="main-menu__button" type="submit" disabled={submitState === "loading"}>{submitState === "loading" ? "Guardando..." : "Enviar"}</button>
+                </div>
+              </form>
+            )}
+            {submitMessage && <p className={`score-message score-message--${submitState}`} role={submitState === "error" ? "alert" : "status"}>{submitMessage}</p>}
+            <section className="leaderboard" aria-labelledby="leaderboard-title">
+              <h2 id="leaderboard-title">Leaderboard</h2>
+              {leaderboardError ? <p className="score-message score-message--error">{leaderboardError}</p> : leaderboard.length === 0 ? <p className="leaderboard__empty">Aún no hay puntajes.</p> : (
+                <ol className="leaderboard__list">
+                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}><span>{index + 1}. {entry.username}</span><strong>{entry.score}</strong><small>R {entry.red_apples} · D {entry.golden_apples} · V {entry.green_apples}</small></li>)}
+                </ol>
+              )}
+            </section>
             <button className="main-menu__button" type="button" onClick={startGame}>Volver a jugar!</button>
           </div>
         </section>

@@ -241,6 +241,111 @@ canvas {
     font-size: 1.6rem;
 }
 
+.score-form {
+    display: grid;
+    gap: 8px;
+    margin: 22px 0 16px;
+    color: #f6d77a;
+    font-family: system-ui, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: left;
+}
+
+.score-form__controls {
+    display: flex;
+    gap: 8px;
+}
+
+.score-form input {
+    min-width: 0;
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #fff8dc;
+    background: #fff8dc;
+    color: #162d19;
+    font: 1rem system-ui, sans-serif;
+}
+
+.score-form .main-menu__button {
+    min-width: 96px;
+    padding: 10px 14px;
+    font-size: 1rem;
+}
+
+.score-form input:focus-visible,
+.score-form .main-menu__button:focus-visible {
+    outline: 3px solid #f6d77a;
+    outline-offset: 2px;
+}
+
+.main-menu__button:disabled,
+.score-form input:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.score-message {
+    margin: 8px 0 14px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.85rem;
+}
+
+.score-message--error {
+    color: #ffb19c;
+}
+
+.score-message--success {
+    color: #b7df91;
+}
+
+.leaderboard {
+    margin: 20px 0 24px;
+    font-family: system-ui, sans-serif;
+    text-align: left;
+}
+
+.leaderboard h2 {
+    margin: 0 0 8px;
+    color: #f6d77a;
+    font: 700 1.1rem Georgia, "Times New Roman", serif;
+    text-align: center;
+}
+
+.leaderboard__list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.leaderboard__list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 8px;
+    padding: 7px 8px;
+    background: rgba(12, 24, 15, 0.28);
+    font-size: 0.85rem;
+}
+
+.leaderboard__list strong {
+    color: #f6d77a;
+}
+
+.leaderboard__list small {
+    grid-column: 1 / -1;
+    color: #dce8c5;
+    font-size: 0.7rem;
+}
+
+.leaderboard__empty {
+    margin: 0;
+    color: #dce8c5;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
 .countdown-overlay {
     position: absolute;
     inset: 0;
