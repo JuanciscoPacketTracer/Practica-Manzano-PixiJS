@@ -16,7 +16,7 @@ import tree4Asset from "../../../assets/images/tree_4.bmp";
 import tree5Asset from "../../../assets/images/tree_5.bmp";
 import heart0Asset from "../../../assets/images/heart_0.bmp";
 import heart1Asset from "../../../assets/images/heart_1.bmp";
-import { calculateGameScale } from "../../../helpers/common";
+import { calculateGameOffset, calculateGameScale } from "../../../helpers/common";
 
 interface IMainContainerProps {
     canvasSize: { width: number; height: number };
@@ -63,10 +63,7 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, lifeRecoveryTr
     const heartTextures = treeAndAppleTextures.slice(9, 11);
     const treeScale = calculateGameScale(canvasSize);
     const treeSize = 256 * treeScale;
-    const treePosition = {
-        x: Math.max(0, (canvasSize.width - treeSize) / 2),
-        y: Math.max(0, (canvasSize.height - treeSize) / 2),
-    };
+    const treePosition = calculateGameOffset(canvasSize, treeScale);
     const treeSpritesRef = useRef<Array<PixiSprite | null>>([]);
     const treeTimeRef = useRef(0);
     const livesRef = useRef(lives);

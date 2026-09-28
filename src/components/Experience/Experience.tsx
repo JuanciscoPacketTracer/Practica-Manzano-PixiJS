@@ -11,7 +11,7 @@ import collectGreenSound from "../../assets/audio/sounds/collect_green.mp3";
 import collectRedSound from "../../assets/audio/sounds/collect_red.mp3";
 import fallsSound from "../../assets/audio/sounds/falls.mp3";
 import spawnSound from "../../assets/audio/sounds/spawn.mp3";
-import { calculateCanvasSize, calculateGameScale } from "../../helpers/common";
+import { calculateCanvasSize, calculateGameOffset, calculateGameScale, GAME_SIZE } from "../../helpers/common";
 import { SOUND_EFFECT_VOLUMES } from "../../constants/audio";
 import type { AppleType, CollectedApples, FallingApple } from "../../types/game";
 import { MainContainer } from "./MainContainer/MainContainer";
@@ -22,7 +22,6 @@ const PLAYER_SPEED = 3.5;
 const APPLE_SIZE = 20;
 const MAX_LIVES = 3;
 const SPAWN_INTERVAL = 0.7;
-const TREE_SIZE = 256;
 const SPAWN_X_MIN = 30;
 const SPAWN_X_MAX = 210;
 const SPAWN_Y_MIN = 20;
@@ -85,8 +84,8 @@ const collides = (first: { x: number; y: number; width: number; height: number }
 };
 
 interface GameSceneProps {
-    canvasSize: { width: number; height: number };
     gameScale: number;
+    gameOffset: { x: number; y: number };
     isPaused: boolean;
     keysRef: React.MutableRefObject<Record<string, boolean>>;
     onScoreChange: (score: number) => void;
@@ -101,7 +100,7 @@ interface ExperienceProps {
     onGameOver: (result: "victory" | "defeat", collectedApples: CollectedApples) => void;
 }
 
-const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, onLivesChange, onLifeRecovered, onGameOver }: GameSceneProps) => {
+const GameScene = ({ gameScale, gameOffset, isPaused, keysRef, onScoreChange, onLivesChange, onLifeRecovered, onGameOver }: GameSceneProps) => {
     const [apples, setApples] = useState<FallingApple[]>([]);
     const scoreRef = useRef(0);
     const livesRef = useRef(MAX_LIVES);
@@ -121,10 +120,10 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
         green: Texture.from(apple1Asset),
         golden: Texture.from(apple2Asset),
     }), []);
-    const logicalCanvasWidth = canvasSize.width / gameScale;
-    const logicalCanvasHeight = canvasSize.height / gameScale;
-    const treeOriginX = Math.max(0, (logicalCanvasWidth - TREE_SIZE) / 2);
-    const treeOriginY = Math.max(0, (logicalCanvasHeight - TREE_SIZE) / 2);
+    const logicalCanvasWidth = GAME_SIZE;
+    const logicalCanvasHeight = GAME_SIZE;
+    const treeOriginX = 0;
+    const treeOriginY = 0;
 
     useEffect(() => {
         applesRef.current = apples;
@@ -138,8 +137,8 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
         if (keysRef.current.d || keysRef.current.arrowright) playerXRef.current += moveAmount;
         playerXRef.current = Math.max(0, Math.min(logicalCanvasWidth - PLAYER_WIDTH, playerXRef.current));
         if (playerSpriteRef.current) {
-            playerSpriteRef.current.x = playerXRef.current * gameScale;
-            playerSpriteRef.current.y = PLAYER_Y * gameScale;
+            playerSpriteRef.current.x = gameOffset.x + playerXRef.current * gameScale;
+            playerSpriteRef.current.y = gameOffset.y + PLAYER_Y * gameScale;
             playerSpriteRef.current.width = PLAYER_WIDTH * gameScale;
             playerSpriteRef.current.height = PLAYER_HEIGHT * gameScale;
         }
@@ -176,8 +175,8 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
             if (sprite) {
                 const swingProgress = Math.min(apple.age / APPLE_SWING_DURATION, 1);
                 const swing = Math.sin(swingProgress * Math.PI * 6 + apple.id * 1.7) * 7 * (1 - swingProgress);
-                sprite.x = (apple.x + swing) * gameScale;
-                sprite.y = apple.y * gameScale;
+                sprite.x = gameOffset.x + (apple.x + swing) * gameScale;
+                sprite.y = gameOffset.y + apple.y * gameScale;
                 sprite.rotation = Math.sin(swingProgress * Math.PI * 6 + apple.id * 1.7) * 0.24 * (1 - swingProgress);
             }
             const crossedBasketTop = previousAppleY + APPLE_SIZE <= PLAYER_Y && apple.y + APPLE_SIZE >= PLAYER_Y;
@@ -239,11 +238,11 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
     });
 
     return <>
-        <Sprite ref={playerSpriteRef} texture={playerTexture} x={120 * gameScale} y={PLAYER_Y * gameScale} width={PLAYER_WIDTH * gameScale} height={PLAYER_HEIGHT * gameScale} />
-        {apples.map((apple) => <Sprite anchor={0.5} ref={(sprite) => { appleSpritesRef.current[apple.id] = sprite; }} key={apple.id} texture={appleTextures[apple.type]} x={(apple.x + APPLE_SIZE / 2) * gameScale} y={(apple.y + APPLE_SIZE / 2) * gameScale} width={APPLE_SIZE * gameScale} height={APPLE_SIZE * gameScale} />)}
+        <Sprite ref={playerSpriteRef} texture={playerTexture} x={gameOffset.x + 120 * gameScale} y={gameOffset.y + PLAYER_Y * gameScale} width={PLAYER_WIDTH * gameScale} height={PLAYER_HEIGHT * gameScale} />
+        {apples.map((apple) => <Sprite anchor={0.5} ref={(sprite) => { appleSpritesRef.current[apple.id] = sprite; }} key={apple.id} texture={appleTextures[apple.type]} x={gameOffset.x + (apple.x + APPLE_SIZE / 2) * gameScale} y={gameOffset.y + (apple.y + APPLE_SIZE / 2) * gameScale} width={APPLE_SIZE * gameScale} height={APPLE_SIZE * gameScale} />)}
         {goldenShines.map((shine) => {
             const progress = shine.age / GOLDEN_SHINE_DURATION;
-            return <Container key={`shine-${shine.id}`} x={(shine.x + APPLE_SIZE / 2) * gameScale} y={(shine.y + APPLE_SIZE / 2) * gameScale} alpha={1 - progress} scale={(0.5 + progress) * gameScale}>
+            return <Container key={`shine-${shine.id}`} x={gameOffset.x + (shine.x + APPLE_SIZE / 2) * gameScale} y={gameOffset.y + (shine.y + APPLE_SIZE / 2) * gameScale} alpha={1 - progress} scale={(0.5 + progress) * gameScale}>
                 <Graphics draw={(graphics) => {
                     graphics.clear();
                     graphics.lineStyle(2, 0xfff4a3, 1);
@@ -260,6 +259,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
 export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps) => {
     const [canvasSize, setCanvasSize] = useState(calculateCanvasSize);
     const gameScale = calculateGameScale(canvasSize);
+    const gameOffset = calculateGameOffset(canvasSize, gameScale);
     const [redAppleCount, setRedAppleCount] = useState(0);
     const [lives, setLives] = useState(MAX_LIVES);
     const [lifeRecoveryTrigger, setLifeRecoveryTrigger] = useState(0);
@@ -309,7 +309,7 @@ export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps)
             <Stage width={canvasSize.width} height={canvasSize.height}>
                 <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives} lifeRecoveryTrigger={lifeRecoveryTrigger}>
                     {isPlaying && (
-                        <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
+                        <GameScene gameScale={gameScale} gameOffset={gameOffset} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
                     )}
                 </MainContainer>
             </Stage>
