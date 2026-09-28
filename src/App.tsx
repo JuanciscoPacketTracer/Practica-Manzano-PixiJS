@@ -4,19 +4,33 @@ import redAppleAsset from "./assets/apple_0.bmp";
 import greenAppleAsset from "./assets/apple_1.bmp";
 import goldenAppleAsset from "./assets/apple_2.bmp";
 import heartAsset from "./assets/heart_0.bmp";
+import type { CollectedApples } from "./types/game";
 import "./index.css";
+
+interface GameResult {
+  outcome: "victory" | "defeat";
+  collectedApples: CollectedApples;
+}
 
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [gameResult, setGameResult] = useState<GameResult | null>(null);
 
   const startGame = () => {
+    setGameResult(null);
     if (isPaused) {
       setIsPaused(false);
       return;
     }
     setCountdown(3);
+  };
+
+  const handleGameOver = (outcome: GameResult["outcome"], collectedApples: CollectedApples) => {
+    setIsPlaying(false);
+    setIsPaused(false);
+    setGameResult({ outcome, collectedApples });
   };
 
   useEffect(() => {
@@ -40,7 +54,7 @@ const App = () => {
 
   return (
     <main className="game-shell">
-      <Experience isPlaying={isPlaying} isPaused={isPaused} />
+      <Experience key={isPlaying ? "playing" : "idle"} isPlaying={isPlaying} isPaused={isPaused} onGameOver={handleGameOver} />
       {isPlaying && !isPaused && (
         <button
           className="pause-button"
@@ -58,7 +72,22 @@ const App = () => {
           <span>{countdownLabel}</span>
         </section>
       )}
-      {isMenuVisible && (
+      {gameResult && (
+        <section className={`result-screen result-screen--${gameResult.outcome}`} aria-live="polite" aria-label={gameResult.outcome === "victory" ? "Pantalla de victoria" : "Pantalla de derrota"}>
+          <div className="result-screen__panel">
+            <p className="main-menu__eyebrow">El árbol de Manzano</p>
+            <h1>{gameResult.outcome === "victory" ? "Ganaste!" : "Perdiste!"}</h1>
+            <div className="result-screen__stats">
+              <div><img src={redAppleAsset} alt="" /><span>Rojas</span><strong>{gameResult.collectedApples.red}</strong></div>
+              <div><img src={greenAppleAsset} alt="" /><span>Verdes</span><strong>{gameResult.collectedApples.green}</strong></div>
+              <div><img src={goldenAppleAsset} alt="" /><span>Doradas</span><strong>{gameResult.collectedApples.golden}</strong></div>
+              <div className="result-screen__total"><span>Total recogidas</span><strong>{Object.values(gameResult.collectedApples).reduce((total, count) => total + count, 0)}</strong></div>
+            </div>
+            <button className="main-menu__button" type="button" onClick={startGame}>Volver a jugar!</button>
+          </div>
+        </section>
+      )}
+      {isMenuVisible && !gameResult && (
         <section className="main-menu" aria-label="Menú principal">
           <div className="main-menu__panel">
             <p className="main-menu__eyebrow">El árbol de Manzano</p>

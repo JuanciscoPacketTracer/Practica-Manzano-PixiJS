@@ -7,7 +7,7 @@ import apple0Asset from "../../assets/apple_0.bmp";
 import apple1Asset from "../../assets/apple_1.bmp";
 import apple2Asset from "../../assets/apple_2.bmp";
 import { calculateCanvasSize, calculateGameScale } from "../../helpers/common";
-import type { AppleType, FallingApple } from "../../types/game";
+import type { AppleType, CollectedApples, FallingApple } from "../../types/game";
 import { MainContainer } from "./MainContainer/MainContainer";
 const PLAYER_WIDTH = 40;
 const PLAYER_HEIGHT = 20;
@@ -15,16 +15,16 @@ const PLAYER_Y = 220;
 const PLAYER_SPEED = 3.5;
 const APPLE_SIZE = 20;
 const MAX_LIVES = 3;
-const SPAWN_INTERVAL = 0.8;
+const SPAWN_INTERVAL = 0.5;
 const TREE_SIZE = 256;
-const SPAWN_X_MIN = 60;
-const SPAWN_X_MAX = 190;
-const SPAWN_Y_MIN = 10;
+const SPAWN_X_MIN = 50;
+const SPAWN_X_MAX = 200;
+const SPAWN_Y_MIN = 20;
 const SPAWN_Y_MAX = 110;
 const APPLE_TYPES: { type: AppleType; spawnChance: number; fallingSpeed: number }[] = [
-    { type: "red", spawnChance: 0.72, fallingSpeed: 2.2 },
-    { type: "green", spawnChance: 0.21, fallingSpeed: 2.6 },
-    { type: "golden", spawnChance: 0.07, fallingSpeed: 1.8 },
+    { type: "red", spawnChance: 0.62, fallingSpeed: 2.2 },
+    { type: "green", spawnChance: 0.31, fallingSpeed: 2.2 },
+    { type: "golden", spawnChance: 0.07, fallingSpeed: 3.2 },
 ];
 
 const pickAppleType = () => {
@@ -48,14 +48,16 @@ interface GameSceneProps {
     keysRef: React.MutableRefObject<Record<string, boolean>>;
     onScoreChange: (score: number) => void;
     onLivesChange: (lives: number) => void;
+    onGameOver: (result: "victory" | "defeat", collectedApples: CollectedApples) => void;
 }
 
 interface ExperienceProps {
     isPlaying: boolean;
     isPaused: boolean;
+    onGameOver: (result: "victory" | "defeat", collectedApples: CollectedApples) => void;
 }
 
-const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, onLivesChange }: GameSceneProps) => {
+const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, onLivesChange, onGameOver }: GameSceneProps) => {
     const [apples, setApples] = useState<FallingApple[]>([]);
     const scoreRef = useRef(0);
     const livesRef = useRef(MAX_LIVES);
@@ -65,6 +67,8 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
     const applesRef = useRef<FallingApple[]>([]);
     const spawnTimer = useRef(0);
     const nextAppleId = useRef(0);
+    const collectedApplesRef = useRef<CollectedApples>({ red: 0, green: 0, golden: 0 });
+    const gameOverRef = useRef(false);
     const playerTexture = useMemo(() => Texture.from(basketAsset), []);
     const appleTextures = useMemo(() => ({
         red: Texture.from(apple0Asset),
@@ -119,6 +123,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
                 sprite.y = apple.y * gameScale;
             }
             if (collides(playerBounds, { x: apple.x, y: apple.y, width: APPLE_SIZE, height: APPLE_SIZE })) {
+                collectedApplesRef.current[apple.type]++;
                 if (apple.type === "red") scoreDelta++;
                 if (apple.type === "green") {
                     lifeDelta--;
@@ -147,6 +152,10 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
             livesRef.current = Math.max(0, Math.min(MAX_LIVES, livesRef.current + lifeDelta));
             onLivesChange(livesRef.current);
         }
+        if (!gameOverRef.current && (scoreRef.current >= 50 || livesRef.current <= 0)) {
+            gameOverRef.current = true;
+            onGameOver(scoreRef.current >= 50 ? "victory" : "defeat", { ...collectedApplesRef.current });
+        }
     });
 
     return <>
@@ -154,7 +163,7 @@ const GameScene = ({ canvasSize, gameScale, isPaused, keysRef, onScoreChange, on
         {apples.map((apple) => <Sprite ref={(sprite) => { appleSpritesRef.current[apple.id] = sprite; }} key={apple.id} texture={appleTextures[apple.type]} x={apple.x * gameScale} y={apple.y * gameScale} width={APPLE_SIZE * gameScale} height={APPLE_SIZE * gameScale} />)}
     </>;
 };
-export const Experience = ({ isPlaying, isPaused }: ExperienceProps) => {
+export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps) => {
     const [canvasSize, setCanvasSize] = useState(calculateCanvasSize);
     const gameScale = calculateGameScale(canvasSize);
     const [redAppleCount, setRedAppleCount] = useState(0);
@@ -194,7 +203,7 @@ export const Experience = ({ isPlaying, isPaused }: ExperienceProps) => {
         <Stage width={canvasSize.width} height={canvasSize.height}>
             <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives}>
                 {isPlaying && (
-                    <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} />
+                    <GameScene canvasSize={canvasSize} gameScale={gameScale} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onGameOver={onGameOver} />
                 )}
             </MainContainer>
         </Stage>
