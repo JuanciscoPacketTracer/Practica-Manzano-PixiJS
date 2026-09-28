@@ -1,5 +1,6 @@
 import { Experience } from "./components/Experience/Experience"
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import redAppleAsset from "./assets/apple_0.bmp";
 import greenAppleAsset from "./assets/apple_1.bmp";
 import goldenAppleAsset from "./assets/apple_2.bmp";
@@ -74,6 +75,33 @@ const App = () => {
       )}
       {gameResult && (
         <section className={`result-screen result-screen--${gameResult.outcome}`} aria-live="polite" aria-label={gameResult.outcome === "victory" ? "Pantalla de victoria" : "Pantalla de derrota"}>
+          {gameResult.outcome === "victory" && (
+            <div className="confetti" aria-hidden="true">
+              {Array.from({ length: 56 }, (_, index) => {
+                const isLeft = index < 28;
+                const pieceIndex = index % 28;
+                const spread = 22 + (pieceIndex % 7) * 4;
+                const originOffset = (pieceIndex % 9) * 3 - 12;
+                const duration = 2.8 + (pieceIndex % 8) * 0.18;
+                const shape = pieceIndex % 3 === 0 ? "confetti__piece--ribbon" : "";
+                const style = {
+                  "--confetti-delay": `${(pieceIndex % 10) * 0.07}s`,
+                  "--confetti-color": ["#f6d77a", "#d85b3f", "#79a85b", "#fff8dc"][index % 4],
+                  "--confetti-origin-x": `${originOffset}px`,
+                  "--confetti-origin-y": `${(pieceIndex % 5) * 5 - 0}px`,
+                  "--confetti-launch-x": `${spread * 0.28}vw`,
+                  "--confetti-peak-x": `${spread * 0.82}vw`,
+                  "--confetti-fall-x": `${spread}vw`,
+                  "--confetti-duration": `${duration}s`,
+                  "--confetti-mid-x": `${(pieceIndex % 4) * 35 - 52}deg`,
+                  "--confetti-mid-y": `${(pieceIndex % 5) * 40 - 80}deg`,
+                  "--confetti-end-x": `${(pieceIndex % 5) * 100 + 280}deg`,
+                  "--confetti-end-y": `${(pieceIndex % 4) * 80 - 120}deg`,
+                } as CSSProperties;
+                return <i key={index} className={`confetti__piece ${isLeft ? "confetti__piece--left" : "confetti__piece--right"} ${shape}`} style={style} />;
+              })}
+            </div>
+          )}
           <div className="result-screen__panel">
             <p className="main-menu__eyebrow">El árbol de Manzano</p>
             <h1>{gameResult.outcome === "victory" ? "Ganaste!" : "Perdiste!"}</h1>

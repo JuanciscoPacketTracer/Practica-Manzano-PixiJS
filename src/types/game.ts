@@ -11,4 +11,5 @@ export interface FallingApple {
     type: AppleType;
     x: number;
     y: number;
+    age: number;
 }

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "postinstall": "node scripts/patch-pixi-react.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

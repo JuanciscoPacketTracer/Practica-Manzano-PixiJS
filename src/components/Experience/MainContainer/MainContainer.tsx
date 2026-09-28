@@ -1,6 +1,7 @@
-import { Container, Sprite, Text } from "@pixi/react";
+import { Container, Graphics, Sprite, Text, useTick } from "@pixi/react";
 import type { PropsWithChildren } from "react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Sprite as PixiSprite } from "pixi.js";
 import { SCALE_MODES, TextStyle, Texture } from "pixi.js";
 import apple0Asset from "../../../assets/apple_0.bmp";
 import apple1Asset from "../../../assets/apple_1.bmp";
@@ -21,9 +22,11 @@ interface IMainContainerProps {
     canvasSize: { width: number; height: number };
     redAppleCount: number;
     lives: number;
+    lifeRecoveryTrigger: number;
 }
 const HUD_PADDING = 24;
 const HUD_ICON_SIZE = 60;
+const HEART_SHINE_DURATION = 0.7;
 const HUD_TEXT_STYLE = new TextStyle({
     fill: 0xffffff,
     fontFamily: "Arial",
@@ -32,7 +35,7 @@ const HUD_TEXT_STYLE = new TextStyle({
     stroke: 0x1d2b1d,
     strokeThickness: 4,
 });
-export const MainContainer = ({ canvasSize, redAppleCount, lives, children }: PropsWithChildren<IMainContainerProps>) => {
+export const MainContainer = ({ canvasSize, redAppleCount, lives, lifeRecoveryTrigger, children }: PropsWithChildren<IMainContainerProps>) => {
     const textures = useMemo(() => {
         return [
             backgroundAsset,
@@ -64,6 +67,31 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, children }: Pr
         x: Math.max(0, (canvasSize.width - treeSize) / 2),
         y: Math.max(0, (canvasSize.height - treeSize) / 2),
     };
+    const treeSpritesRef = useRef<Array<PixiSprite | null>>([]);
+    const treeTimeRef = useRef(0);
+    const livesRef = useRef(lives);
+    const heartShineRef = useRef({ age: HEART_SHINE_DURATION, slot: 0 });
+    const [heartShine, setHeartShine] = useState({ age: HEART_SHINE_DURATION, slot: 0 });
+
+    useEffect(() => {
+        livesRef.current = lives;
+    }, [lives]);
+
+    useEffect(() => {
+        if (lifeRecoveryTrigger === 0) return;
+        heartShineRef.current = { age: 0, slot: Math.max(0, Math.min(2, livesRef.current - 1)) };
+    }, [lifeRecoveryTrigger]);
+
+    useTick((delta) => {
+        treeTimeRef.current += delta / 60;
+        treeSpritesRef.current.forEach((sprite, index) => {
+            if (!sprite || index === 2) return;
+            const sway = Math.sin(treeTimeRef.current * (1.35 + index * 0.17) + index * 1.9) * (1.5 + index * 0.25) * treeScale;
+            sprite.x = treePosition.x + sway;
+        });
+        heartShineRef.current.age = Math.min(HEART_SHINE_DURATION, heartShineRef.current.age + delta / 60);
+        setHeartShine({ ...heartShineRef.current });
+    });
     return (
         <Container>
             <Sprite
@@ -78,6 +106,7 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, children }: Pr
             />
             {treeTextures.map((texture, index) => (
                 <Sprite
+                    ref={(sprite) => { treeSpritesRef.current[index] = sprite; }}
                     key={`tree-${index}`}
                     texture={texture}
                     x={treePosition.x}
@@ -118,6 +147,24 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, children }: Pr
                     />
                 ))}
             </Container>
+            {heartShine.age < HEART_SHINE_DURATION && (
+                <Container
+                    x={canvasSize.width / 2 + (heartShine.slot - 1) * 70 * (treeScale / 2)}
+                    y={HUD_PADDING * treeScale + HUD_ICON_SIZE * (treeScale / 2) / 2}
+                    alpha={1 - heartShine.age / HEART_SHINE_DURATION}
+                    scale={(0.9 + heartShine.age / HEART_SHINE_DURATION) * treeScale}
+                >
+                    <Graphics draw={(graphics) => {
+                        graphics.clear();
+                        graphics.lineStyle(3, 0xfff4a3, 1);
+                        for (let ray = 0; ray < 10; ray++) {
+                            const angle = (Math.PI * 2 * ray) / 10;
+                            graphics.moveTo(Math.cos(angle) * 13, Math.sin(angle) * 13);
+                            graphics.lineTo(Math.cos(angle) * 28, Math.sin(angle) * 28);
+                        }
+                    }} />
+                </Container>
+            )}
             {children}
         </Container>
     );
