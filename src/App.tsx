@@ -1,10 +1,10 @@
 import { Experience } from "./components/Experience/Experience"
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import redAppleAsset from "./assets/images/apple_0.bmp";
-import greenAppleAsset from "./assets/images/apple_1.bmp";
-import goldenAppleAsset from "./assets/images/apple_2.bmp";
-import heartAsset from "./assets/images/heart_0.bmp";
+import redAppleAsset from "./assets/images/apple_0.png";
+import greenAppleAsset from "./assets/images/apple_1.png";
+import goldenAppleAsset from "./assets/images/apple_2.png";
+import heartAsset from "./assets/images/heart_0.png";
 import bg1Music from "./assets/audio/music/bg1.mp3";
 import bg2Music from "./assets/audio/music/bg2.ogg";
 import bg3Music from "./assets/audio/music/bg3.mp3";
@@ -14,6 +14,7 @@ import countSound from "./assets/audio/sounds/count.mp3";
 import defeatSound from "./assets/audio/sounds/defeat.mp3";
 import goSound from "./assets/audio/sounds/go.mp3";
 import { MUSIC_VOLUMES, SOUND_EFFECT_VOLUMES } from "./constants/audio";
+import { playEffect, syncMusic, unlockMusic } from "./helpers/audioManager";
 import type { CollectedApples } from "./types/game";
 import "./index.css";
 
@@ -22,36 +23,23 @@ interface GameResult {
   collectedApples: CollectedApples;
 }
 
-const playSound = (source: string, volume: number) => {
-  const audio = new Audio(source);
-  audio.volume = volume;
-  void audio.play().catch(() => undefined);
-};
-
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const unlockAudio = () => {
+  const unlockAudio = useCallback(() => {
     if (audioUnlocked) return;
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-    if (!audio.src) audio.src = bg1Music;
-    audio.loop = true;
-    audio.volume = MUSIC_VOLUMES.bg1;
-    audio.muted = false;
-    audio.play().then(() => {
+    unlockMusic(bg1Music, MUSIC_VOLUMES.bg1).then(() => {
       setAudioUnlocked(true);
     }).catch(() => {
       setAudioUnlocked(false);
     });
-  };
+  }, [audioUnlocked]);
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
     unlockAudio();
     setGameResult(null);
     if (isPaused) {
@@ -59,13 +47,13 @@ const App = () => {
       return;
     }
     setCountdown(3);
-  };
+  }, [isPaused, unlockAudio]);
 
-  const handleGameOver = (outcome: GameResult["outcome"], collectedApples: CollectedApples) => {
+  const handleGameOver = useCallback((outcome: GameResult["outcome"], collectedApples: CollectedApples) => {
     setIsPlaying(false);
     setIsPaused(false);
     setGameResult({ outcome, collectedApples });
-  };
+  }, []);
 
   useEffect(() => {
     if (countdown === null) return;
@@ -84,21 +72,18 @@ const App = () => {
 
   useEffect(() => {
     if (countdown === null) return;
-    playSound(countdown === 0 ? goSound : countSound, countdown === 0 ? SOUND_EFFECT_VOLUMES.go : SOUND_EFFECT_VOLUMES.count);
+    playEffect({ source: countdown === 0 ? goSound : countSound, volume: countdown === 0 ? SOUND_EFFECT_VOLUMES.go : SOUND_EFFECT_VOLUMES.count });
   }, [countdown]);
 
   useEffect(() => {
     if (!gameResult) return;
-    playSound(
-      gameResult.outcome === "victory" ? applauseSound : defeatSound,
-      gameResult.outcome === "victory" ? SOUND_EFFECT_VOLUMES.applause : SOUND_EFFECT_VOLUMES.defeat,
-    );
+    playEffect({
+      source: gameResult.outcome === "victory" ? applauseSound : defeatSound,
+      volume: gameResult.outcome === "victory" ? SOUND_EFFECT_VOLUMES.applause : SOUND_EFFECT_VOLUMES.defeat,
+    });
   }, [gameResult]);
 
   useEffect(() => {
-    const audio = audioRef.current ?? new Audio();
-    audioRef.current = audio;
-
     const track = gameResult
       ? gameResult.outcome === "victory" ? bg3Music : bg4Music
       : isPlaying && !isPaused && countdown === null ? bg2Music : bg1Music;
@@ -106,16 +91,8 @@ const App = () => {
       ? gameResult.outcome === "victory" ? MUSIC_VOLUMES.bg3 : MUSIC_VOLUMES.bg4
       : isPlaying && !isPaused && countdown === null ? MUSIC_VOLUMES.bg2 : MUSIC_VOLUMES.bg1;
 
-    if (audio.src !== new URL(track, window.location.href).href) {
-      audio.src = track;
-      audio.currentTime = 0;
-    }
-    audio.loop = true;
-    audio.volume = volume;
-    void audio.play().then(() => {
-      if (!audioUnlocked) setAudioUnlocked(true);
-    }).catch(() => undefined);
-  }, [audioUnlocked, countdown, gameResult, isPaused, isPlaying]);
+    syncMusic(track, volume);
+  }, [countdown, gameResult, isPaused, isPlaying]);
 
   const isMenuVisible = !isPlaying && countdown === null || isPaused;
   const isCountdownVisible = countdown !== null;
@@ -123,7 +100,7 @@ const App = () => {
 
   return (
     <main className="game-shell">
-      <Experience key={isPlaying ? "playing" : "idle"} isPlaying={isPlaying} isPaused={isPaused} onGameOver={handleGameOver} />
+      <Experience isPlaying={isPlaying} isPaused={isPaused} onGameOver={handleGameOver} />
       {isPlaying && !isPaused && (
         <button
           className="pause-button"
