@@ -16,6 +16,19 @@ export const getSavedUsername = () => localStorage.getItem(STORAGE_KEY);
 
 export const saveUsername = (username: string) => localStorage.setItem(STORAGE_KEY, username);
 
+export const fetchBestScore = async (username: string) => {
+  const { data, error } = await supabase
+    .from("scores")
+    .select("total_score")
+    .eq("username", username)
+    .order("total_score", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.total_score ?? null;
+};
+
 export const submitScore = async (username: string, collectedApples: CollectedApples) => {
   const score = Object.values(collectedApples).reduce((total, count) => total + count, 0);
   const { error } = await supabase.from("scores").insert({
@@ -27,9 +40,13 @@ export const submitScore = async (username: string, collectedApples: CollectedAp
   });
 
   if (error) {
-    if (error.code === "23505") throw new Error("Ese nombre de usuario ya existe");
+    if (error.code === "23505") {
+      return { inserted: false, bestScore: await fetchBestScore(username) };
+    }
     throw error;
   }
+
+  return { inserted: true, bestScore: Math.max(score, (await fetchBestScore(username)) ?? 0) };
 };
 
 export const fetchTopScores = async (limit = 10): Promise<LeaderboardEntry[]> => {

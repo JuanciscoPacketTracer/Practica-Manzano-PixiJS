@@ -342,8 +342,23 @@ canvas {
 
 .leaderboard__list small {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: #dce8c5;
     font-size: 0.7rem;
+}
+
+.leaderboard__apple-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.leaderboard__apple-count img {
+    width: 16px;
+    height: 16px;
+    image-rendering: pixelated;
 }
 
 .leaderboard__empty {

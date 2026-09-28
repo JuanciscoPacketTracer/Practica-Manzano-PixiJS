@@ -2,6 +2,9 @@
 -- La tabla scores ya debe existir con total_score, red_score,
 -- green_score y golden_score.
 
+-- La tabla permite varias partidas con el mismo username.
+drop index if exists public.scores_username_key;
+
 alter table public.scores enable row level security;
 
 drop policy if exists "Anyone can read scores" on public.scores;

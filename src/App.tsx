@@ -85,11 +85,11 @@ const App = () => {
     setSubmitState("loading");
     setSubmitMessage("");
     try {
-      await submitScore(playerUsername, gameResult.collectedApples);
+      const result = await submitScore(playerUsername, gameResult.collectedApples);
       saveUsername(playerUsername);
       setUsername(playerUsername);
       setSubmitState("success");
-      setSubmitMessage("Puntaje guardado");
+      setSubmitMessage(result.inserted ? "Puntaje guardado" : `Tu mejor puntaje es ${result.bestScore ?? 0}`);
       setLeaderboard(await fetchTopScores());
     } catch (error) {
       hasSubmittedResult.current = false;
@@ -228,7 +228,15 @@ const App = () => {
               <h2 id="leaderboard-title">Leaderboard</h2>
               {leaderboardError ? <p className="score-message score-message--error">{leaderboardError}</p> : leaderboard.length === 0 ? <p className="leaderboard__empty">Aún no hay puntajes.</p> : (
                 <ol className="leaderboard__list">
-                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}><span>{index + 1}. {entry.username}</span><strong>{entry.total_score}</strong><small>R {entry.red_score} · D {entry.golden_score} · V {entry.green_score}</small></li>)}
+                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}>
+                    <span>{index + 1}. {entry.username}</span>
+                    <strong>{entry.total_score}</strong>
+                    <small>
+                      <span className="leaderboard__apple-count"><img src={redAppleAsset} alt="Rojas" />{entry.red_score}</span>
+                      <span className="leaderboard__apple-count"><img src={goldenAppleAsset} alt="Doradas" />{entry.golden_score}</span>
+                      <span className="leaderboard__apple-count"><img src={greenAppleAsset} alt="Verdes" />{entry.green_score}</span>
+                    </small>
+                  </li>)}
                 </ol>
               )}
             </section>
