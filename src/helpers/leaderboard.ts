@@ -5,10 +5,10 @@ export const STORAGE_KEY = "apple-tree-username";
 
 export interface LeaderboardEntry {
   username: string;
-  score: number;
-  red_apples: number;
-  golden_apples: number;
-  green_apples: number;
+  total_score: number;
+  red_score: number;
+  golden_score: number;
+  green_score: number;
   created_at: string;
 }
 
@@ -20,10 +20,10 @@ export const submitScore = async (username: string, collectedApples: CollectedAp
   const score = Object.values(collectedApples).reduce((total, count) => total + count, 0);
   const { error } = await supabase.from("scores").insert({
     username,
-    score,
-    red_apples: collectedApples.red,
-    golden_apples: collectedApples.golden,
-    green_apples: collectedApples.green,
+    total_score: score,
+    red_score: collectedApples.red,
+    golden_score: collectedApples.golden,
+    green_score: collectedApples.green,
   });
 
   if (error) {
@@ -35,8 +35,8 @@ export const submitScore = async (username: string, collectedApples: CollectedAp
 export const fetchTopScores = async (limit = 10): Promise<LeaderboardEntry[]> => {
   const { data, error } = await supabase
     .from("scores")
-    .select("username, score, red_apples, golden_apples, green_apples, created_at")
-    .order("score", { ascending: false })
+    .select("username, total_score, red_score, golden_score, green_score, created_at")
+    .order("total_score", { ascending: false })
     .limit(limit);
 
   if (error) throw error;

@@ -228,7 +228,7 @@ const App = () => {
               <h2 id="leaderboard-title">Leaderboard</h2>
               {leaderboardError ? <p className="score-message score-message--error">{leaderboardError}</p> : leaderboard.length === 0 ? <p className="leaderboard__empty">Aún no hay puntajes.</p> : (
                 <ol className="leaderboard__list">
-                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}><span>{index + 1}. {entry.username}</span><strong>{entry.score}</strong><small>R {entry.red_apples} · D {entry.golden_apples} · V {entry.green_apples}</small></li>)}
+                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}><span>{index + 1}. {entry.username}</span><strong>{entry.total_score}</strong><small>R {entry.red_score} · D {entry.golden_score} · V {entry.green_score}</small></li>)}
                 </ol>
               )}
             </section>
