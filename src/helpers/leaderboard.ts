@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase";
 import type { CollectedApples } from "../types/game";
 
 export const STORAGE_KEY = "apple-tree-username";
+export const LEADERBOARD_LIMIT = 100;
 
 export interface LeaderboardEntry {
   username: string;
@@ -49,7 +50,7 @@ export const submitScore = async (username: string, collectedApples: CollectedAp
   return { inserted: true, bestScore: Math.max(score, (await fetchBestScore(username)) ?? 0) };
 };
 
-export const fetchTopScores = async (limit = 10): Promise<LeaderboardEntry[]> => {
+export const fetchTopScores = async (limit = LEADERBOARD_LIMIT): Promise<LeaderboardEntry[]> => {
   const { data, error } = await supabase
     .from("scores")
     .select("username, total_score, red_score, golden_score, green_score, created_at")
