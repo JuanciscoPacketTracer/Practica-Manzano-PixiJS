@@ -3,6 +3,9 @@
 -- green_score y golden_score.
 
 -- La tabla permite varias partidas con el mismo username.
+alter table public.scores
+  drop constraint if exists scores_username_key;
+
 drop index if exists public.scores_username_key;
 
 alter table public.scores enable row level security;

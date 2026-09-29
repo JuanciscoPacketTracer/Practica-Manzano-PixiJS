@@ -41,7 +41,7 @@ export const submitScore = async (username: string, collectedApples: CollectedAp
 
   if (error) {
     if (error.code === "23505") {
-      return { inserted: false, bestScore: await fetchBestScore(username) };
+      return { inserted: false, bestScore: Math.max(score, (await fetchBestScore(username)) ?? 0) };
     }
     throw error;
   }

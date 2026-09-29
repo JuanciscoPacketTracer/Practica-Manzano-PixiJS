@@ -89,7 +89,7 @@ const App = () => {
       saveUsername(playerUsername);
       setUsername(playerUsername);
       setSubmitState("success");
-      setSubmitMessage(result.inserted ? "Puntaje guardado" : `Tu mejor puntaje es ${result.bestScore ?? 0}`);
+      setSubmitMessage(`Tu mejor puntaje es ${result.bestScore ?? 0}`);
       setLeaderboard(await fetchTopScores());
     } catch (error) {
       hasSubmittedResult.current = false;
