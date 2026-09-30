@@ -176,7 +176,7 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
     }, [removeApple, removeShine]);
 
     useTick((delta) => {
-        if (!isPlaying || isPaused || livesRef.current <= 0 || scoreRef.current >= 50) return;
+        if (!isPlaying || isPaused || livesRef.current <= 0) return;
         const frameTime = delta / 60;
         const moveAmount = PLAYER_SPEED * delta;
         if (keysRef.current.a || keysRef.current.arrowleft) playerXRef.current -= moveAmount;
@@ -279,7 +279,7 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
             if (shine.age >= GOLDEN_SHINE_DURATION) removeShine(id);
         });
         if (scoreDelta) {
-            scoreRef.current = Math.min(50, scoreRef.current + scoreDelta);
+            scoreRef.current += scoreDelta;
             onScoreChange(scoreRef.current);
         }
         if (lifeDelta) {
@@ -287,9 +287,9 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
             onLivesChange(livesRef.current);
             if (lifeRecovered) onLifeRecovered(livesRef.current);
         }
-        if (!gameOverRef.current && (scoreRef.current >= 50 || livesRef.current <= 0)) {
+        if (!gameOverRef.current && livesRef.current <= 0) {
             gameOverRef.current = true;
-            onGameOver(scoreRef.current >= 50 ? "victory" : "defeat", { ...collectedApplesRef.current });
+            onGameOver("defeat", { ...collectedApplesRef.current });
         }
     });
 

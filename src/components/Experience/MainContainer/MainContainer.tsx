@@ -117,7 +117,7 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, lifeRecoveryTr
                 y={HUD_PADDING * treeScale}
                 scale={(treeScale)/2}
             >
-                <Text text={`${redAppleCount}/50`} style={HUD_TEXT_STYLE} />
+                <Text text={`${redAppleCount}`} style={HUD_TEXT_STYLE} />
                 <Sprite
                     texture={appleTextures[0]}
                     x={70}

@@ -3,11 +3,37 @@
 -- green_score y golden_score.
 
 -- La tabla permite varias partidas con el mismo username.
--- Ejecuta este bloque si quedó alguna restricción o índice único de una versión anterior.
-alter table public.scores
-  drop constraint if exists scores_username_key;
+-- El username no debe ser único: cada partida crea un nuevo registro.
+do $$
+declare
+  constraint_name text;
+  index_name text;
+begin
+  for constraint_name in
+    select c.conname
+    from pg_constraint c
+    join pg_attribute a
+      on a.attrelid = c.conrelid
+     and a.attnum = any(c.conkey)
+    where c.conrelid = 'public.scores'::regclass
+      and c.contype = 'u'
+      and a.attname = 'username'
+  loop
+    execute format('alter table public.scores drop constraint %I', constraint_name);
+  end loop;
 
-drop index if exists public.scores_username_key;
+  for index_name in
+    select indexrelid::regclass::text
+    from pg_index
+    where indrelid = 'public.scores'::regclass
+      and indisunique
+      and not indisprimary
+      and indexrelid::regclass::text like 'public.%'
+        and pg_get_indexdef(indexrelid) ilike '%username%'
+  loop
+    execute format('drop index if exists %s', index_name);
+  end loop;
+end $$;
 
 alter table public.scores enable row level security;
 
@@ -32,3 +58,10 @@ from information_schema.columns
 where table_schema = 'public'
   and table_name = 'scores'
 order by ordinal_position;
+
+select indexname, indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'scores'
+  and indexdef ilike '%username%'
+  and indexdef ilike '%unique%';

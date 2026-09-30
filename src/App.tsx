@@ -177,7 +177,7 @@ const App = () => {
         </section>
       )}
       {gameResult && (
-        <section className={`result-screen result-screen--${gameResult.outcome}`} aria-live="polite" aria-label={gameResult.outcome === "victory" ? "Pantalla de victoria" : "Pantalla de derrota"}>
+        <section className={`result-screen result-screen--${gameResult.outcome}`} aria-live="polite" aria-label="Fin de la partida">
           {gameResult.outcome === "victory" && (
             <div className="confetti" aria-hidden="true">
               {Array.from({ length: 56 }, (_, index) => {
@@ -207,12 +207,12 @@ const App = () => {
           )}
           <div className="result-screen__panel">
             <p className="main-menu__eyebrow">El árbol de Manzano</p>
-            <h1>{gameResult.outcome === "victory" ? "Ganaste!" : "Perdiste!"}</h1>
+            <h1>{gameResult.outcome === "victory" ? "Ganaste!" : "Fin de la partida"}</h1>
             <div className="result-screen__stats">
               <div><img src={redAppleAsset} alt="" /><span>Rojas</span><strong>{gameResult.collectedApples.red}</strong></div>
               <div><img src={greenAppleAsset} alt="" /><span>Verdes</span><strong>{gameResult.collectedApples.green}</strong></div>
               <div><img src={goldenAppleAsset} alt="" /><span>Doradas</span><strong>{gameResult.collectedApples.golden}</strong></div>
-              <div className="result-screen__total"><span>Total recogidas</span><strong>{Object.values(gameResult.collectedApples).reduce((total, count) => total + count, 0)}</strong></div>
+              <div className="result-screen__total"><span>Tu récord</span><strong>{Object.values(gameResult.collectedApples).reduce((total, count) => total + count, 0)}</strong></div>
             </div>
             {!username && submitState !== "success" && (
               <form className="score-form" onSubmit={handleScoreSubmit}>
@@ -248,7 +248,7 @@ const App = () => {
         <section className="main-menu" aria-label="Menú principal">
           <div className="main-menu__panel">
             <p className="main-menu__eyebrow">El árbol de Manzano</p>
-            <h1>Recoge las manzanas!</h1>
+            <h1>Modo infinito</h1>
             <ul className="main-menu__instructions">
               <li>
                 <span className="main-menu__rule-icon main-menu__rule-icon--hearts" aria-hidden="true">
@@ -258,7 +258,7 @@ const App = () => {
               </li>
               <li>
                 <img className="main-menu__rule-icon" src={redAppleAsset} alt="" />
-                <span>Obtén x50 manzanas rojas para ganar</span>
+                <span>Recoge tantas manzanas como puedas</span>
               </li>
               <li>
                 <img className="main-menu__rule-icon" src={greenAppleAsset} alt="" />
