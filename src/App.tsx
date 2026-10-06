@@ -16,18 +16,22 @@ import defeatSound from "./assets/audio/sounds/defeat.mp3";
 import goSound from "./assets/audio/sounds/go.mp3";
 import { MUSIC_VOLUMES, SOUND_EFFECT_VOLUMES } from "./constants/audio";
 import { playEffect, syncMusic, unlockMusic } from "./helpers/audioManager";
-import type { CollectedApples } from "./types/game";
+import type { CollectedApples, GameMode } from "./types/game";
 import { fetchTopScores, getSavedUsername, saveUsername, submitScore, type LeaderboardEntry } from "./helpers/leaderboard";
 import "./index.css";
 
 interface GameResult {
   outcome: "victory" | "defeat";
   collectedApples: CollectedApples;
+  mode: GameMode;
 }
+
+const LEADERBOARD_PREVIEW_LIMIT = 10;
 
 const App = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<GameMode>("infinite");
   const [countdown, setCountdown] = useState<number | null>(null);
   const [gameResult, setGameResult] = useState<GameResult | null>(null);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
@@ -37,6 +41,7 @@ const App = () => {
   const [submitMessage, setSubmitMessage] = useState("");
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardError, setLeaderboardError] = useState("");
+  const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const hasSubmittedResult = useRef(false);
 
   const unlockAudio = useCallback(() => {
@@ -51,6 +56,7 @@ const App = () => {
   const startGame = useCallback(() => {
     unlockAudio();
     setGameResult(null);
+    setShowFullLeaderboard(false);
     if (isPaused) {
       setIsPaused(false);
       return;
@@ -61,17 +67,17 @@ const App = () => {
   const handleGameOver = useCallback((outcome: GameResult["outcome"], collectedApples: CollectedApples) => {
     setIsPlaying(false);
     setIsPaused(false);
-    setGameResult({ outcome, collectedApples });
+    setGameResult({ outcome, collectedApples, mode: selectedMode });
     hasSubmittedResult.current = false;
     setSubmitState("idle");
     setSubmitMessage("");
-  }, []);
+  }, [selectedMode]);
 
   useEffect(() => {
     if (!gameResult) return;
     let cancelled = false;
     setLeaderboardError("");
-    fetchTopScores().then((scores) => {
+    fetchTopScores(gameResult.mode).then((scores) => {
       if (!cancelled) setLeaderboard(scores);
     }).catch(() => {
       if (!cancelled) setLeaderboardError("No se pudo cargar el leaderboard");
@@ -85,12 +91,12 @@ const App = () => {
     setSubmitState("loading");
     setSubmitMessage("");
     try {
-      const result = await submitScore(playerUsername, gameResult.collectedApples);
+      const result = await submitScore(playerUsername, gameResult.collectedApples, gameResult.mode);
       saveUsername(playerUsername);
       setUsername(playerUsername);
       setSubmitState("success");
       setSubmitMessage(`Tu mejor puntaje es ${result.bestScore ?? 0}`);
-      setLeaderboard(await fetchTopScores());
+      setLeaderboard(await fetchTopScores(gameResult.mode));
     } catch (error) {
       hasSubmittedResult.current = false;
       setSubmitState("error");
@@ -158,7 +164,7 @@ const App = () => {
 
   return (
     <main className="game-shell">
-      <Experience isPlaying={isPlaying} isPaused={isPaused} onGameOver={handleGameOver} />
+      <Experience isPlaying={isPlaying} isPaused={isPaused} mode={selectedMode} onGameOver={handleGameOver} />
       {isPlaying && !isPaused && (
         <button
           className="pause-button"
@@ -206,7 +212,7 @@ const App = () => {
             </div>
           )}
           <div className="result-screen__panel">
-            <p className="main-menu__eyebrow">El árbol de Manzano</p>
+            <p className="main-menu__eyebrow">{gameResult.mode === "classic" ? "Modo clásico" : "Modo infinito"}</p>
             <h1>{gameResult.outcome === "victory" ? "Ganaste!" : "Fin de la partida"}</h1>
             <div className="result-screen__stats">
               <div><img src={redAppleAsset} alt="" /><span>Rojas</span><strong>{gameResult.collectedApples.red}</strong></div>
@@ -227,8 +233,9 @@ const App = () => {
             <section className="leaderboard" aria-labelledby="leaderboard-title">
               <h2 id="leaderboard-title">Leaderboard</h2>
               {leaderboardError ? <p className="score-message score-message--error">{leaderboardError}</p> : leaderboard.length === 0 ? <p className="leaderboard__empty">Aún no hay puntajes.</p> : (
-                <ol className="leaderboard__list">
-                  {leaderboard.map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}>
+                <>
+                  <ol className="leaderboard__list">
+                  {leaderboard.slice(0, showFullLeaderboard ? undefined : LEADERBOARD_PREVIEW_LIMIT).map((entry, index) => <li key={`${entry.username}-${entry.created_at}`}>
                     <span>{index + 1}. {entry.username}</span>
                     <strong>{entry.total_score}</strong>
                     <small>
@@ -237,7 +244,11 @@ const App = () => {
                       <span className="leaderboard__apple-count"><img src={greenAppleAsset} alt="Verdes" />{entry.green_score}</span>
                     </small>
                   </li>)}
-                </ol>
+                  </ol>
+                  {!showFullLeaderboard && leaderboard.length > LEADERBOARD_PREVIEW_LIMIT && (
+                    <button className="leaderboard__expand" type="button" onClick={() => setShowFullLeaderboard(true)}>Ver los 100 mejores</button>
+                  )}
+                </>
               )}
             </section>
             <button className="main-menu__button" type="button" onClick={startGame}>Volver a jugar!</button>
@@ -248,7 +259,15 @@ const App = () => {
         <section className="main-menu" aria-label="Menú principal">
           <div className="main-menu__panel">
             <p className="main-menu__eyebrow">El árbol de Manzano</p>
-            <h1>Modo infinito</h1>
+            <h1>{selectedMode === "classic" ? "Modo clásico" : "Modo infinito"}</h1>
+            <div className="mode-picker" role="group" aria-label="Seleccionar modo de juego">
+              <button className={`mode-picker__button ${selectedMode === "classic" ? "mode-picker__button--selected" : ""}`} type="button" onClick={() => setSelectedMode("classic")} aria-pressed={selectedMode === "classic"}>
+                Clásico
+              </button>
+              <button className={`mode-picker__button ${selectedMode === "infinite" ? "mode-picker__button--selected" : ""}`} type="button" onClick={() => setSelectedMode("infinite")} aria-pressed={selectedMode === "infinite"}>
+                Infinito
+              </button>
+            </div>
             <ul className="main-menu__instructions">
               <li>
                 <span className="main-menu__rule-icon main-menu__rule-icon--hearts" aria-hidden="true">
@@ -258,7 +277,7 @@ const App = () => {
               </li>
               <li>
                 <img className="main-menu__rule-icon" src={redAppleAsset} alt="" />
-                <span>Recoge tantas manzanas como puedas</span>
+                <span>{selectedMode === "classic" ? "Obtén x50 manzanas rojas para ganar" : "Recoge tantas manzanas como puedas"}</span>
               </li>
               <li>
                 <img className="main-menu__rule-icon" src={greenAppleAsset} alt="" />

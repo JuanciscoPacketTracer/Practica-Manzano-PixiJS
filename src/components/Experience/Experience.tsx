@@ -2,7 +2,6 @@ import { Container, Sprite, Stage, useTick } from "@pixi/react";
 import { Container as PixiContainer, Graphics as PixiGraphics, Sprite as PixiSpriteClass, Texture } from "pixi.js";
 import type { Sprite as PixiSprite } from "pixi.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import basketAsset from "../../assets/images/basket.png";
 import apple0Asset from "../../assets/images/apple_0.png";
 import apple1Asset from "../../assets/images/apple_1.png";
 import apple2Asset from "../../assets/images/apple_2.png";
@@ -14,10 +13,11 @@ import spawnSound from "../../assets/audio/sounds/spawn.mp3";
 import { calculateCanvasSize, calculateGameOffset, calculateGameScale, GAME_SIZE } from "../../helpers/common";
 import { playEffect } from "../../helpers/audioManager";
 import { SOUND_EFFECT_VOLUMES } from "../../constants/audio";
-import type { AppleType, CollectedApples, FallingApple } from "../../types/game";
+import type { AppleType, CollectedApples, FallingApple, GameMode } from "../../types/game";
 import { MainContainer } from "./MainContainer/MainContainer";
 const PLAYER_WIDTH = 40;
 const PLAYER_HEIGHT = 20;
+const PLAYER_SPRITE_SIZE = 40;
 const PLAYER_Y = 220;
 const PLAYER_SPEED = 3.5;
 const APPLE_SIZE = 20;
@@ -43,6 +43,11 @@ const SOUND_EFFECTS = {
     falls: { source: fallsSound, volume: SOUND_EFFECT_VOLUMES.falls },
     spawn: { source: spawnSound, volume: SOUND_EFFECT_VOLUMES.spawn },
 } as const;
+const basketAssets = import.meta.glob("../../assets/images/baskets/basket*.png", { eager: true, import: "default", query: "?url" }) as Record<string, string>;
+const basketAssetEntries = Object.entries(basketAssets).sort(([firstPath], [secondPath]) => {
+    const getFrame = (path: string) => path.endsWith("/basket.png") ? 0 : Number(path.match(/basket(\d+)\.png$/)?.[1] ?? 0);
+    return getFrame(firstPath) - getFrame(secondPath);
+});
 
 const playSound = (sound: { source: string; volume: number }) => {
     playEffect(sound);
@@ -87,6 +92,7 @@ interface GameSceneProps {
     gameOffset: { x: number; y: number };
     isPlaying: boolean;
     isPaused: boolean;
+    mode: GameMode;
     keysRef: React.MutableRefObject<Record<string, boolean>>;
     onScoreChange: (score: number) => void;
     onLivesChange: (lives: number) => void;
@@ -97,6 +103,7 @@ interface GameSceneProps {
 interface ExperienceProps {
     isPlaying: boolean;
     isPaused: boolean;
+    mode: GameMode;
     onGameOver: (result: "victory" | "defeat", collectedApples: CollectedApples) => void;
 }
 
@@ -110,7 +117,7 @@ interface GoldenShineEntity {
     container: PixiContainer;
 }
 
-const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScoreChange, onLivesChange, onLifeRecovered, onGameOver }: GameSceneProps) => {
+const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, mode, keysRef, onScoreChange, onLivesChange, onLifeRecovered, onGameOver }: GameSceneProps) => {
     const scoreRef = useRef(0);
     const livesRef = useRef(MAX_LIVES);
     const playerXRef = useRef(120);
@@ -123,7 +130,7 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
     const collectedApplesRef = useRef<CollectedApples>({ red: 0, green: 0, golden: 0 });
     const goldenShinesRef = useRef<Map<number, GoldenShineEntity>>(new Map());
     const gameOverRef = useRef(false);
-    const playerTexture = useMemo(() => Texture.from(basketAsset), []);
+    const basketTextures = useMemo(() => basketAssetEntries.map(([, asset]) => Texture.from(asset)), []);
     const appleTextures = useMemo(() => ({
         red: Texture.from(apple0Asset),
         green: Texture.from(apple1Asset),
@@ -161,9 +168,10 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
         collectedApplesRef.current = { red: 0, green: 0, golden: 0 };
         gameOverRef.current = false;
         keysRef.current = {};
+        if (playerSpriteRef.current) playerSpriteRef.current.texture = basketTextures[0];
         onScoreChange(0);
         onLivesChange(MAX_LIVES);
-    }, [keysRef, onLivesChange, onScoreChange, removeApple, removeShine]);
+    }, [basketTextures, keysRef, onLivesChange, onScoreChange, removeApple, removeShine]);
 
     useEffect(() => {
         if (isPlaying) resetGame();
@@ -176,7 +184,7 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
     }, [removeApple, removeShine]);
 
     useTick((delta) => {
-        if (!isPlaying || isPaused || livesRef.current <= 0) return;
+        if (!isPlaying || isPaused || livesRef.current <= 0 || (mode === "classic" && scoreRef.current >= 50)) return;
         const frameTime = delta / 60;
         const moveAmount = PLAYER_SPEED * delta;
         if (keysRef.current.a || keysRef.current.arrowleft) playerXRef.current -= moveAmount;
@@ -185,8 +193,13 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
         if (playerSpriteRef.current) {
             playerSpriteRef.current.x = gameOffset.x + playerXRef.current * gameScale;
             playerSpriteRef.current.y = gameOffset.y + PLAYER_Y * gameScale;
-            playerSpriteRef.current.width = PLAYER_WIDTH * gameScale;
-            playerSpriteRef.current.height = PLAYER_HEIGHT * gameScale;
+            playerSpriteRef.current.width = PLAYER_SPRITE_SIZE * gameScale;
+            playerSpriteRef.current.height = PLAYER_SPRITE_SIZE * gameScale;
+            const basketStep = mode === "classic" ? 2 : 8;
+            const basketFrame = Math.min(basketTextures.length - 1, Math.floor(scoreRef.current / basketStep));
+            if (playerSpriteRef.current.texture !== basketTextures[basketFrame]) {
+                playerSpriteRef.current.texture = basketTextures[basketFrame];
+            }
         }
 
         spawnTimer.current += frameTime;
@@ -279,7 +292,7 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
             if (shine.age >= GOLDEN_SHINE_DURATION) removeShine(id);
         });
         if (scoreDelta) {
-            scoreRef.current += scoreDelta;
+            scoreRef.current = mode === "classic" ? Math.min(50, scoreRef.current + scoreDelta) : scoreRef.current + scoreDelta;
             onScoreChange(scoreRef.current);
         }
         if (lifeDelta) {
@@ -287,19 +300,19 @@ const GameScene = ({ gameScale, gameOffset, isPlaying, isPaused, keysRef, onScor
             onLivesChange(livesRef.current);
             if (lifeRecovered) onLifeRecovered(livesRef.current);
         }
-        if (!gameOverRef.current && livesRef.current <= 0) {
+        if (!gameOverRef.current && (livesRef.current <= 0 || (mode === "classic" && scoreRef.current >= 50))) {
             gameOverRef.current = true;
-            onGameOver("defeat", { ...collectedApplesRef.current });
+            onGameOver(mode === "classic" && scoreRef.current >= 50 ? "victory" : "defeat", { ...collectedApplesRef.current });
         }
     });
 
     return <>
         <Container ref={appleContainerRef} />
         <Container ref={shineContainerRef} />
-        <Sprite ref={playerSpriteRef} texture={playerTexture} x={gameOffset.x + 120 * gameScale} y={gameOffset.y + PLAYER_Y * gameScale} width={PLAYER_WIDTH * gameScale} height={PLAYER_HEIGHT * gameScale} />
+        <Sprite ref={playerSpriteRef} texture={basketTextures[0]} x={gameOffset.x + 120 * gameScale} y={gameOffset.y + PLAYER_Y * gameScale} width={PLAYER_SPRITE_SIZE * gameScale} height={PLAYER_SPRITE_SIZE * gameScale} />
     </>;
 };
-export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps) => {
+export const Experience = ({ isPlaying, isPaused, mode, onGameOver }: ExperienceProps) => {
     const [canvasSize, setCanvasSize] = useState(calculateCanvasSize);
     const gameScale = useMemo(() => calculateGameScale(canvasSize), [canvasSize]);
     const gameOffset = useMemo(() => calculateGameOffset(canvasSize, gameScale), [canvasSize, gameScale]);
@@ -358,8 +371,8 @@ export const Experience = ({ isPlaying, isPaused, onGameOver }: ExperienceProps)
     return (
         <>
             <Stage width={canvasSize.width} height={canvasSize.height}>
-                <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} lives={lives} lifeRecoveryTrigger={lifeRecoveryTrigger}>
-                    <GameScene isPlaying={isPlaying} gameScale={gameScale} gameOffset={gameOffset} isPaused={isPaused} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
+                <MainContainer canvasSize={canvasSize} redAppleCount={redAppleCount} mode={mode} lives={lives} lifeRecoveryTrigger={lifeRecoveryTrigger}>
+                    <GameScene isPlaying={isPlaying} gameScale={gameScale} gameOffset={gameOffset} isPaused={isPaused} mode={mode} keysRef={keysRef} onScoreChange={setRedAppleCount} onLivesChange={setLives} onLifeRecovered={() => setLifeRecoveryTrigger((trigger) => trigger + 1)} onGameOver={onGameOver} />
                 </MainContainer>
             </Stage>
             {isPlaying && !isPaused && (

@@ -2,6 +2,15 @@
 -- La tabla scores ya debe existir con total_score, red_score,
 -- green_score y golden_score.
 
+alter table public.scores
+  add column if not exists mode text not null default 'classic';
+
+alter table public.scores
+  drop constraint if exists scores_mode_check;
+
+alter table public.scores
+  add constraint scores_mode_check check (mode in ('classic', 'infinite'));
+
 -- La tabla permite varias partidas con el mismo username.
 -- El username no debe ser único: cada partida crea un nuevo registro.
 do $$

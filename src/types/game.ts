@@ -1,4 +1,5 @@
 export type AppleType = "red" | "green" | "golden";
+export type GameMode = "classic" | "infinite";
 
 export interface CollectedApples {
     red: number;

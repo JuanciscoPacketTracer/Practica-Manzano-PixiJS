@@ -17,10 +17,12 @@ import tree5Asset from "../../../assets/images/tree_5.png";
 import heart0Asset from "../../../assets/images/heart_0.png";
 import heart1Asset from "../../../assets/images/heart_1.png";
 import { calculateGameOffset, calculateGameScale } from "../../../helpers/common";
+import type { GameMode } from "../../../types/game";
 
 interface IMainContainerProps {
     canvasSize: { width: number; height: number };
     redAppleCount: number;
+    mode: GameMode;
     lives: number;
     lifeRecoveryTrigger: number;
 }
@@ -35,7 +37,7 @@ const HUD_TEXT_STYLE = new TextStyle({
     stroke: 0x1d2b1d,
     strokeThickness: 4,
 });
-export const MainContainer = ({ canvasSize, redAppleCount, lives, lifeRecoveryTrigger, children }: PropsWithChildren<IMainContainerProps>) => {
+export const MainContainer = ({ canvasSize, redAppleCount, mode, lives, lifeRecoveryTrigger, children }: PropsWithChildren<IMainContainerProps>) => {
     const textures = useMemo(() => {
         return [
             backgroundAsset,
@@ -117,7 +119,7 @@ export const MainContainer = ({ canvasSize, redAppleCount, lives, lifeRecoveryTr
                 y={HUD_PADDING * treeScale}
                 scale={(treeScale)/2}
             >
-                <Text text={`${redAppleCount}`} style={HUD_TEXT_STYLE} />
+                <Text text={mode === "classic" ? `${redAppleCount}/50` : `${redAppleCount}`} style={HUD_TEXT_STYLE} />
                 <Sprite
                     texture={appleTextures[0]}
                     x={70}

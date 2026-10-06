@@ -317,10 +317,13 @@ canvas {
 
 .leaderboard__list {
     display: grid;
+    max-height: 270px;
     gap: 4px;
     margin: 0;
     padding: 0;
     list-style: none;
+    overflow-y: auto;
+    scrollbar-color: #f6d77a rgba(12, 24, 15, 0.35);
 }
 
 .leaderboard__list li {
@@ -368,6 +371,28 @@ canvas {
     text-align: center;
 }
 
+.leaderboard__expand {
+    display: block;
+    margin: 10px auto 0;
+    padding: 8px 14px;
+    border: 2px solid #f6d77a;
+    background: transparent;
+    color: #f6d77a;
+    cursor: pointer;
+    font: 700 0.85rem system-ui, sans-serif;
+}
+
+.leaderboard__expand:hover,
+.leaderboard__expand:focus-visible {
+    background: #f6d77a;
+    color: #23462d;
+}
+
+.leaderboard__expand:focus-visible {
+    outline: 3px solid #fff8dc;
+    outline-offset: 3px;
+}
+
 .countdown-overlay {
     position: absolute;
     inset: 0;
@@ -406,6 +431,39 @@ canvas {
     font-size: clamp(2rem, 9vh, 4.5rem);
     line-height: 0.95;
     text-shadow: 4px 4px 0 #162d19;
+}
+
+.mode-picker {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 320px;
+    margin: 18px auto 0;
+    border: 2px solid #f6d77a;
+}
+
+.mode-picker__button {
+    padding: 10px 14px;
+    border: 0;
+    background: #23462d;
+    color: #dce8c5;
+    cursor: pointer;
+    font: 700 1rem Georgia, "Times New Roman", serif;
+}
+
+.mode-picker__button + .mode-picker__button {
+    border-left: 2px solid #f6d77a;
+}
+
+.mode-picker__button:hover,
+.mode-picker__button:focus-visible,
+.mode-picker__button--selected {
+    background: #d85b3f;
+    color: #fff8dc;
+}
+
+.mode-picker__button:focus-visible {
+    outline: 3px solid #fff8dc;
+    outline-offset: -5px;
 }
 
 .main-menu__instructions {
